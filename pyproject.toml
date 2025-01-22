@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "sympy2xdsl"
+version = "0.1.0"
+description = "Convert sympy expressions to SSA form via xDSL"
+authors = ["Anton Lydike <me@antonlydike.de>"]
+license = "AGPL-3.0-or-later"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+sympy = "^1.13.3"
+xdsl = "^0.26.0"
+
+
+[tool.poetry.group.dev.dependencies]
+filecheck = "^1.0.1"
+pytest = "^8.3.4"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
