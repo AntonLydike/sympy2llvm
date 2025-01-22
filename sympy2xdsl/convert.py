@@ -5,6 +5,8 @@ from xdsl.ir import SSAValue
 import itertools
 
 from enum import Flag, auto
+
+
 class ExprKind(Flag):
     # arithmetic
     ADD = auto()
@@ -37,6 +39,7 @@ class FunKind(Flag):
     """
     Various math functions
     """
+
     LOG = auto()
     # trig
     SIN = auto()
@@ -91,6 +94,7 @@ _FUN_MAPPER = {
 Map from sympy functions to FunKind
 """
 
+
 class Converter:
     _var_to_ssa_vars: dict[sympy.Expr, SSAValue]
     _expr: sympy.Expr
@@ -120,7 +124,9 @@ class Converter:
         elif self._curr_exp.is_Symbol:
             return ExprKind.VAR
         else:
-            raise ValueError(f"Unknown expression kind: {self._curr_exp} ({self._curr_exp.func})")
+            raise ValueError(
+                f"Unknown expression kind: {self._curr_exp} ({self._curr_exp.func})"
+            )
 
     def get_curr_fun_kind(self) -> FunKind:
         if not self._curr_exp.is_Function:
@@ -152,8 +158,8 @@ class Converter:
             self._var_to_ssa_vars[expr] = val
         return val
 
+
 def _walk_expr_from_leaves(expr: sympy.Expr) -> Iterable[sympy.Expr]:
     for arg in expr.args:
         yield from _walk_expr_from_leaves(arg)
     yield expr
-

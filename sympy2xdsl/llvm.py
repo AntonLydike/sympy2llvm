@@ -3,12 +3,23 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import llvm, arith
 from xdsl.dialects.experimental import math
 from xdsl.ir import SSAValue, Attribute, Block, Region
-from xdsl.dialects.builtin import Float64Type, IntegerAttr, i1, i64, f64, FloatAttr, IntegerType, AnyFloat
+from xdsl.dialects.builtin import (
+    Float64Type,
+    IntegerAttr,
+    i1,
+    i64,
+    f64,
+    FloatAttr,
+    IntegerType,
+    AnyFloat,
+)
 from sympy2xdsl.convert import Converter, ExprKind, LitKind, FunKind
 
 
 class ConvertLLM(Converter):
-    def __init__(self, expr, var_mapping, int_t: Attribute = i64, float_t: Attribute = f64):
+    def __init__(
+        self, expr, var_mapping, int_t: Attribute = i64, float_t: Attribute = f64
+    ):
         super().__init__(expr, var_mapping)
         self._float_t = float_t
         self._int_t = int_t
@@ -32,13 +43,19 @@ class ConvertLLM(Converter):
     def visit_lit(self, expr) -> SSAValue:
         kind = self.get_curr_lit_kind()
         if LitKind.INT in kind:
-            return llvm.ConstantOp(IntegerAttr(int(self._curr_exp), self._int_t), self._int_t).result
+            return llvm.ConstantOp(
+                IntegerAttr(int(self._curr_exp), self._int_t), self._int_t
+            ).result
         if LitKind.BOOL in kind:
             return llvm.ConstantOp(IntegerAttr(int(expr), i1), i1).result
         if LitKind.FLOAT in kind or LitKind.RATIONAL in kind:
-            return llvm.ConstantOp(FloatAttr(float(self._curr_exp), self._float_t), self._float_t).result
+            return llvm.ConstantOp(
+                FloatAttr(float(self._curr_exp), self._float_t), self._float_t
+            ).result
 
-    def coalesce_args(self, args: tuple[SSAValue, ...]) -> tuple[tuple[SSAValue, ...], Attribute]:
+    def coalesce_args(
+        self, args: tuple[SSAValue, ...]
+    ) -> tuple[tuple[SSAValue, ...], Attribute]:
         """
         Coalesce ssa values to the same type.
 
@@ -62,9 +79,9 @@ class ConvertLLM(Converter):
                 # switch to wider type
                 if arg.type.bitwidth > dest_t.bitwidth:
                     dest_t = arg.type
-        
+
         # cast each arg to new type
-        new_args  = []
+        new_args = []
         for arg in args:
             # is_int implies all args are int
             if is_int:
@@ -90,7 +107,7 @@ class ConvertLLM(Converter):
             # reverse args for division, as div is really b**-1
             return tuple(map(self.ssa_val_for, self._curr_exp.args[::-1]))
         return tuple(map(self.ssa_val_for, self._curr_exp.args))
-    
+
     def get_curr_expr_args_coalesced(self) -> tuple[SSAValue, ...]:
         return self.coalesce_args(self.get_curr_exprs_ssa_args())
 
@@ -104,10 +121,13 @@ class ConvertLLM(Converter):
                 return base_op(*ssa_args).result
             case ExprKind.MUL:
                 # simplify a*(b**-1) to just a/b
-                if self._curr_exp.args[1].is_Pow and self._curr_exp.args[1].args[1] == -1:
+                if (
+                    self._curr_exp.args[1].is_Pow
+                    and self._curr_exp.args[1].args[1] == -1
+                ):
                     return self._insert_div(
                         self.ssa_val_for(self._curr_exp.args[0]),
-                        self.ssa_val_for(self._curr_exp.args[1].args[0])
+                        self.ssa_val_for(self._curr_exp.args[1].args[0]),
                     )
                 ssa_args, dst_type = self.get_curr_expr_args_coalesced()
                 base_op = arith.MulfOp
@@ -120,14 +140,13 @@ class ConvertLLM(Converter):
                 base, exp = self.get_curr_exprs_ssa_args()
                 if not isinstance(base.type, AnyFloat):
                     if isinstance(exp.type, IntegerAttr):
-                        return math.IPowIOp(*self.coalesce_args((base, exp))).result    
+                        return math.IPowIOp(*self.coalesce_args((base, exp))).result
                     base = arith.SIToFPOp(base, exp.type).result
                 if isinstance(exp.type, IntegerAttr):
                     return math.FPowIOp(base, exp).result
                 return math.PowFOp(base, exp).result
             case wrong:
                 raise ValueError(f"Unknown math kind: {wrong}")
-
 
     def _insert_div(self, a: SSAValue, b: SSAValue) -> SSAValue:
         ssa_args, dst_type = self.coalesce_args((a, b))
@@ -142,7 +161,14 @@ class ConvertLLM(Converter):
         llvm.ReturnOp.build(operands=[res_val])
         return res_val
 
-def make_llvm_func_with_args(name: str, args: dict[sympy.Symbol, Attribute], expr: sympy.Expr, int_t= i64, float_t= f64):
+
+def make_llvm_func_with_args(
+    name: str,
+    args: dict[sympy.Symbol, Attribute],
+    expr: sympy.Expr,
+    int_t=i64,
+    float_t=f64,
+):
     block = Block(arg_types=tuple(args.values()))
     for arg, sym in zip(block.args, args):
         arg.name_hint = sym.name
@@ -156,5 +182,6 @@ def make_llvm_func_with_args(name: str, args: dict[sympy.Symbol, Attribute], exp
             },
         ).walk()
 
-    return llvm.FuncOp(name, llvm.LLVMFunctionType(tuple(args.values()), res.type), body=Region(block))
-
+    return llvm.FuncOp(
+        name, llvm.LLVMFunctionType(tuple(args.values()), res.type), body=Region(block)
+    )
