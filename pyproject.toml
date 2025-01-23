@@ -6,16 +6,21 @@ authors = ["Anton Lydike <me@antonlydike.de>"]
 license = "AGPL-3.0-or-later"
 readme = "README.md"
 
+
+[tool.poetry.scripts]
+sympy2xdsl = "sympy2xdsl.main:main"
+
 [tool.poetry.dependencies]
 python = "^3.10"
 sympy = "^1.13.3"
-xdsl = "^0.26.0"
+xdsl = {git = "https://github.com/xdslproject/xdsl", rev = "anton/llvm-float-stuff"}
 
 
 [tool.poetry.group.dev.dependencies]
 filecheck = "^1.0.1"
 pytest = "^8.3.4"
 black = "^24.10.0"
+lit = "^18.1.8"
 
 [build-system]
 requires = ["poetry-core"]

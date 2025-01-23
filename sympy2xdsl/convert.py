@@ -1,4 +1,6 @@
-from typing import Callable, Iterable
+import argparse
+from abc import abstractmethod
+from typing import Callable, Iterable, Any
 import sympy
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.ir import SSAValue
@@ -41,6 +43,7 @@ class FunKind(Flag):
     """
 
     LOG = auto()
+    EXP = auto()
     # trig
     SIN = auto()
     COS = auto()
@@ -63,10 +66,15 @@ class FunKind(Flag):
     MIN = auto()
     MAX = auto()
     MOD = auto()
+    ABS = auto()
+    # rounding
+    FLOOR = auto()
+    CEIL = auto()
 
 
 _FUN_MAPPER = {
     sympy.log: FunKind.LOG,
+    sympy.exp: FunKind.EXP,
     # trig
     sympy.sin: FunKind.SIN,
     sympy.cos: FunKind.COS,
@@ -89,6 +97,10 @@ _FUN_MAPPER = {
     sympy.Min: FunKind.MIN,
     sympy.Max: FunKind.MAX,
     sympy.Mod: FunKind.MOD,
+    sympy.Abs: FunKind.ABS,
+    # rounding
+    sympy.floor: FunKind.FLOOR,
+    sympy.ceiling: FunKind.CEIL,
 }
 """
 Map from sympy functions to FunKind
@@ -101,9 +113,35 @@ class Converter:
     _curr_exp: sympy.Expr
 
     def __init__(self, expr: sympy.Expr, var_mapping: dict[sympy.Expr, SSAValue]):
+        """
+        The __init__ *must* of any subclass must receive `expr` as the first argument or overwrite `from_args`.
+        """
         self._expr = expr
         self._curr_exp = expr
         self._var_to_ssa_vars = var_mapping
+
+    @classmethod
+    @abstractmethod
+    def register_args(cls, parser: argparse.ArgumentParser):
+        """
+        Register arguments needed for this converter to the argument parser.
+        """
+        raise NotImplementedError("Register args not implemented for this expression")
+
+    @classmethod
+    @abstractmethod
+    def args_to_init_args(cls, args: argparse.Namespace) -> tuple[tuple[Any, ...], dict[str, Any]]:
+        """
+        Convert namespace to args and kwargs for __init__.
+
+        Args are provided based on what is registered in register_args.
+        """
+        raise NotImplementedError("Args to init args not implemented for this expression")
+
+    @classmethod
+    def from_args(cls, expr: sympy.Expr, args: argparse.Namespace) -> 'Converter':
+        args, kwargs = cls.args_to_init_args(args)
+        return cls(expr, *args, **kwargs)
 
     def get_curr_expr_kind(self) -> ExprKind:
         if self._curr_exp.is_Add:
@@ -148,8 +186,9 @@ class Converter:
     def ssa_val_for(self, expr: sympy.Expr) -> SSAValue | None:
         return self._var_to_ssa_vars.get(expr, None)
 
+    @abstractmethod
     def visit(self) -> SSAValue:
-        pass
+        raise NotImplementedError("Visit not implemented for this expression")
 
     def walk(self):
         for expr in _walk_expr_from_leaves(self._expr):
@@ -157,6 +196,10 @@ class Converter:
             val = self.visit()
             self._var_to_ssa_vars[expr] = val
         return val
+
+    @abstractmethod
+    def convert(self):
+        raise NotImplementedError("Convert not implemented for this expression")
 
 
 def _walk_expr_from_leaves(expr: sympy.Expr) -> Iterable[sympy.Expr]:
