@@ -130,16 +130,20 @@ class Converter:
 
     @classmethod
     @abstractmethod
-    def args_to_init_args(cls, args: argparse.Namespace) -> tuple[tuple[Any, ...], dict[str, Any]]:
+    def args_to_init_args(
+        cls, args: argparse.Namespace
+    ) -> tuple[tuple[Any, ...], dict[str, Any]]:
         """
         Convert namespace to args and kwargs for __init__.
 
         Args are provided based on what is registered in register_args.
         """
-        raise NotImplementedError("Args to init args not implemented for this expression")
+        raise NotImplementedError(
+            "Args to init args not implemented for this expression"
+        )
 
     @classmethod
-    def from_args(cls, expr: sympy.Expr, args: argparse.Namespace) -> 'Converter':
+    def from_args(cls, expr: sympy.Expr, args: argparse.Namespace) -> "Converter":
         args, kwargs = cls.args_to_init_args(args)
         return cls(expr, *args, **kwargs)
 

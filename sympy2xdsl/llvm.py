@@ -2,7 +2,7 @@ from typing import Any
 import argparse
 import sympy
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import llvm, math, builtin, get_all_dialects
+from xdsl.dialects import llvm, math, get_all_dialects
 from xdsl.ir import SSAValue, Attribute, Block, Region, Operation
 from xdsl.parser import Parser, MLContext
 from xdsl.dialects.builtin import (
@@ -48,6 +48,7 @@ FUN_TO_MATH: dict[FunKind, Operation | None] = {
     FunKind.CEIL: math.CeilOp,
 }
 
+
 def parse_string_to_xdsl_type(type_str: str) -> Attribute:
     ctx = MLContext()
     for name, dialect in get_all_dialects().items():
@@ -55,14 +56,21 @@ def parse_string_to_xdsl_type(type_str: str) -> Attribute:
     p = Parser(ctx, type_str, "args")
     return p.parse_type()
 
-class ConvertLLM(Converter):
+
+class ConvertLLVM(Converter):
     fun_name: str
     _inp_types: tuple[Attribute, ...]
     _float_t: Attribute
     _int_t: Attribute
 
     def __init__(
-        self, expr, fun_name: str, inp_types: tuple[Attribute, ...], /, int_t: Attribute = i64, float_t: Attribute = f64
+        self,
+        expr: sympy.Expr,
+        fun_name: str,
+        inp_types: tuple[Attribute, ...],
+        /,
+        int_t: Attribute = i64,
+        float_t: Attribute = f64,
     ):
         super().__init__(expr, dict())
         if len(expr.free_symbols) != len(inp_types):
@@ -74,13 +82,30 @@ class ConvertLLM(Converter):
 
     @classmethod
     def register_args(cls, parser: argparse.ArgumentParser):
-        parser.add_argument("--int-t", default="i64", type=parse_string_to_xdsl_type, help="An xdsl type expression")
-        parser.add_argument("--float-t", default="f64", type=parse_string_to_xdsl_type, help="An xdsl type expression")
+        parser.add_argument(
+            "--int-t",
+            default="i64",
+            type=parse_string_to_xdsl_type,
+            help="An xdsl type expression",
+        )
+        parser.add_argument(
+            "--float-t",
+            default="f64",
+            type=parse_string_to_xdsl_type,
+            help="An xdsl type expression",
+        )
         parser.add_argument("function", help="Name of the llvm function to generate")
-        parser.add_argument("arg_types", nargs="+", help="Argument types for the functions arguments, e.g. i64 f64", type=parse_string_to_xdsl_type)
+        parser.add_argument(
+            "arg_types",
+            nargs="+",
+            help="Argument types for the functions arguments, e.g. i64 f64",
+            type=parse_string_to_xdsl_type,
+        )
 
     @classmethod
-    def args_to_init_args(cls, args: argparse.Namespace) -> tuple[tuple[Any, ...], dict[str, Any]]:
+    def args_to_init_args(
+        cls, args: argparse.Namespace
+    ) -> tuple[tuple[Any, ...], dict[str, Any]]:
         """
         Convert namespace to args and kwargs for __init__
         """
@@ -127,10 +152,12 @@ class ConvertLLM(Converter):
             else:
                 # for AND/OR/XOR
                 FUN_TO_MATH.get(kind)(
-                    *(self.get_val_as_type(arg, self._int_t) for arg in self._curr_exp.args)
+                    *(
+                        self.get_val_as_type(arg, self._int_t)
+                        for arg in self._curr_exp.args
+                    )
                 ).results[0]
         raise ValueError(f"Cannot translate function: {kind}")
-
 
     def coalesce_args(
         self, args: tuple[SSAValue, ...]
@@ -190,9 +217,11 @@ class ConvertLLM(Converter):
     def get_curr_expr_args_coalesced(self) -> tuple[SSAValue, ...]:
         return self.coalesce_args(self.get_curr_exprs_ssa_args())
 
-    def get_val_as_type(self, exp: sympy.Expr | SSAValue, dest_t: Attribute) -> SSAValue:
+    def get_val_as_type(
+        self, exp: sympy.Expr | SSAValue, dest_t: Attribute
+    ) -> SSAValue:
         if isinstance(exp, sympy.Expr):
-             ssa_val: SSAValue= self.ssa_val_for(exp)
+            ssa_val: SSAValue = self.ssa_val_for(exp)
         else:
             ssa_val: SSAValue = exp
         source_t = ssa_val.type
@@ -207,10 +236,14 @@ class ConvertLLM(Converter):
         elif isinstance(source_t, IntegerType) and isinstance(dest_t, AnyFloat):
             return llvm.SIToFPOp(ssa_val, dest_t).result
         elif isinstance(source_t, AnyFloat) and isinstance(dest_t, IntegerType):
-            return llvm.FPtoSIOp(ssa_val, dest_t).result  # TODO: this is not implemented yet
+            return llvm.FPtoSIOp(
+                ssa_val, dest_t
+            ).result  # TODO: this is not implemented yet
         raise ValueError("This should be unreachable")
 
-    def _instantiate_multi_arg_op(self, op_t: Operation, args: tuple[SSAValue, ...]) -> SSAValue:
+    def _instantiate_multi_arg_op(
+        self, op_t: Operation, args: tuple[SSAValue, ...]
+    ) -> SSAValue:
         start = args[0]
         for arg in args[1:]:
             start = op_t(start, arg).results[0]
@@ -268,7 +301,9 @@ class ConvertLLM(Converter):
 
     def convert(self):
         block = Block(arg_types=tuple(self._inp_types))
-        for arg, sym in zip(block.args, sorted(self._expr.free_symbols, key=lambda x: x.name)):
+        for arg, sym in zip(
+            block.args, sorted(self._expr.free_symbols, key=lambda x: x.name)
+        ):
             arg.name_hint = sym.name
             self._var_to_ssa_vars[sym] = arg
 
@@ -276,5 +311,7 @@ class ConvertLLM(Converter):
             res = self.walk()
 
         return llvm.FuncOp(
-            self.fun_name, llvm.LLVMFunctionType(self._inp_types, res.type), body=Region(block)
+            self.fun_name,
+            llvm.LLVMFunctionType(self._inp_types, res.type),
+            body=Region(block),
         )

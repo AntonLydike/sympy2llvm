@@ -3,11 +3,12 @@ import sys
 import sympy
 import sympy.abc
 
-from sympy2xdsl.llvm import ConvertLLM
+from sympy2xdsl.llvm import ConvertLLVM
 
 CONVERTERS = {
-    "llvm": ConvertLLM,
+    "llvm": ConvertLLVM,
 }
+
 
 class Sympy2XDSLMain:
     _args: argparse.Namespace
@@ -45,10 +46,19 @@ class Sympy2XDSLMain:
                 f.write(result)
 
     def _parse_args(self, args: list[str]):
-        parser = argparse.ArgumentParser("Sympy2XDSL: Convert SymPy expressions to XDSL")
+        parser = argparse.ArgumentParser(
+            "Sympy2XDSL: Convert SymPy expressions to XDSL"
+        )
 
-        parser.add_argument("-i", "--input", help="Input file or - for stdin (default)", default="-")
-        parser.add_argument("-o", "--output", help="Output file or - for stdout, default is stdout", default="-")
+        parser.add_argument(
+            "-i", "--input", help="Input file or - for stdin (default)", default="-"
+        )
+        parser.add_argument(
+            "-o",
+            "--output",
+            help="Output file or - for stdout, default is stdout",
+            default="-",
+        )
 
         subparsers = parser.add_subparsers(dest="converter", required=True)
         for name, converter in CONVERTERS.items():
