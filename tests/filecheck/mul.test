@@ -1,0 +1,28 @@
+// RUN: sympy2xdsl -i %s mlir mul f64 f64 | filecheck %s
+// RUN: sympy2xdsl -i %s mlir mul i23 i23 --int-t i23 | filecheck --check-prefix=I23 %s
+// RUN: sympy2xdsl -i %s llvm mul f64 f64 | filecheck --check-prefix=LLVM %s
+// RUN: sympy2xdsl -i %s llvm mul i32 i32 --int-t i32 | filecheck --check-prefix=I32 %s
+
+a*b
+
+// CHECK:      "llvm.func"() <{sym_name = "mul", function_type = !llvm.func<f64 (f64, f64)>, CConv = #llvm.cconv<ccc>, linkage = #llvm.linkage<"internal">, visibility_ = 0 : i64}> ({
+// CHECK-NEXT: ^0(%a : f64, %b : f64):
+// CHECK-NEXT:   %0 = llvm.fmul %a, %b : f64
+// CHECK-NEXT:   "llvm.return"(%0) : (f64) -> ()
+// CHECK-NEXT: }) : () -> ()
+
+// I23:      "llvm.func"() <{sym_name = "mul", function_type = !llvm.func<i23 (i23, i23)>, CConv = #llvm.cconv<ccc>, linkage = #llvm.linkage<"internal">, visibility_ = 0 : i64}> ({
+// I23-NEXT: ^0(%a : i23, %b : i23):
+// I23-NEXT:   %0 = llvm.mul %a, %b : i23
+// I23-NEXT:   "llvm.return"(%0) : (i23) -> ()
+// I23-NEXT: }) : () -> ()
+
+// LLVM:      define double @mul(double %a, double %b) {
+// LLVM-NEXT:   %1 = fmul double %a, %b
+// LLVM-NEXT:   ret double %1
+// LLVM-NEXT: }
+
+// I32:      define i32 @mul(i32 %a, i32 %b) {
+// I32-NEXT:   %1 = mul i32 %a, %b
+// I32-NEXT:   ret i32 %1
+// I32-NEXT: }

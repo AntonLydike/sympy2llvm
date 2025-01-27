@@ -1,5 +1,7 @@
-// RUN: sympy2xdsl -i %s llvm fun f64 f64 | filecheck %s
-// RUN: sympy2xdsl -i %s llvm fun i23 i23 --int-t i23 --float-t f32 | filecheck --check-prefix=I23-CHECK %s
+// RUN: sympy2xdsl -i %s mlir fun f64 f64 | filecheck %s
+// RUN: sympy2xdsl -i %s mlir fun i23 i23 --int-t i23 | filecheck --check-prefix=I23 %s
+// RUN: sympy2xdsl -i %s llvm fun f64 f64 | filecheck --check-prefix=LLVM %s
+// RUN: sympy2xdsl -i %s llvm fun i32 i32 --int-t i32 | filecheck --check-prefix=I32 %s
 
 a + log(1/sqrt(b))*1.44 + exp(12.4*a+3)
 
@@ -21,24 +23,60 @@ a + log(1/sqrt(b))*1.44 + exp(12.4*a+3)
 // CHECK-NEXT:   "llvm.return"(%12) : (f64) -> ()
 // CHECK-NEXT: }) : () -> ()
 
+// I23:      "llvm.func"() <{sym_name = "fun", function_type = !llvm.func<f64 (i23, i23)>, CConv = #llvm.cconv<ccc>, linkage = #llvm.linkage<"internal">, visibility_ = 0 : i64}> ({
+// I23-NEXT: ^0(%a : i23, %b : i23):
+// I23-NEXT:   %0 = llvm.mlir.constant(1.440000e+00 : f64) : f64
+// I23-NEXT:   %1 = llvm.mlir.constant(-5.000000e-01 : f64) : f64
+// I23-NEXT:   %2 = llvm.sitofp %b : i23 to f64
+// I23-NEXT:   %3 = "math.powf"(%2, %1) : (f64, f64) -> f64
+// I23-NEXT:   %4 = "math.log"(%3) : (f64) -> f64
+// I23-NEXT:   %5 = llvm.fmul %0, %4 : f64
+// I23-NEXT:   %6 = llvm.mlir.constant(3 : i23) : i23
+// I23-NEXT:   %7 = llvm.mlir.constant(1.240000e+01 : f64) : f64
+// I23-NEXT:   %8 = llvm.sitofp %a : i23 to f64
+// I23-NEXT:   %9 = llvm.fmul %7, %8 : f64
+// I23-NEXT:   %10 = llvm.sitofp %6 : i23 to f64
+// I23-NEXT:   %11 = llvm.fadd %10, %9 : f64
+// I23-NEXT:   %12 = "math.exp"(%11) : (f64) -> f64
+// I23-NEXT:   %13 = llvm.sitofp %a : i23 to f64
+// I23-NEXT:   %14 = llvm.fadd %13, %5 : f64
+// I23-NEXT:   %15 = llvm.fadd %14, %12 : f64
+// I23-NEXT:   "llvm.return"(%15) : (f64) -> ()
+// I23-NEXT: }) : () -> ()
 
-// I23-CHECK:      "llvm.func"() <{sym_name = "fun", function_type = !llvm.func<f32 (i23, i23)>, CConv = #llvm.cconv<ccc>, linkage = #llvm.linkage<"internal">, visibility_ = 0 : i64}> ({
-// I23-CHECK-NEXT: ^0(%a : i23, %b : i23):
-// I23-CHECK-NEXT:   %0 = llvm.mlir.constant(1.440000e+00 : f32) : f32
-// I23-CHECK-NEXT:   %1 = llvm.mlir.constant(-5.000000e-01 : f32) : f32
-// I23-CHECK-NEXT:   %2 = llvm.sitofp %b : i23 to f32
-// I23-CHECK-NEXT:   %3 = "math.powf"(%2, %1) : (f32, f32) -> f32
-// I23-CHECK-NEXT:   %4 = "math.log"(%3) : (f32) -> f32
-// I23-CHECK-NEXT:   %5 = llvm.fmul %0, %4 : f32
-// I23-CHECK-NEXT:   %6 = llvm.mlir.constant(3 : i23) : i23
-// I23-CHECK-NEXT:   %7 = llvm.mlir.constant(1.240000e+01 : f32) : f32
-// I23-CHECK-NEXT:   %8 = llvm.sitofp %a : i23 to f32
-// I23-CHECK-NEXT:   %9 = llvm.fmul %7, %8 : f32
-// I23-CHECK-NEXT:   %10 = llvm.sitofp %6 : i23 to f32
-// I23-CHECK-NEXT:   %11 = llvm.fadd %10, %9 : f32
-// I23-CHECK-NEXT:   %12 = "math.exp"(%11) : (f32) -> f32
-// I23-CHECK-NEXT:   %13 = llvm.sitofp %a : i23 to f32
-// I23-CHECK-NEXT:   %14 = llvm.fadd %13, %5 : f32
-// I23-CHECK-NEXT:   %15 = llvm.fadd %14, %12 : f32
-// I23-CHECK-NEXT:   "llvm.return"(%15) : (f32) -> ()
-// I23-CHECK-NEXT: }) : () -> ()
+// LLVM:      define double @fun(double %a, double %b) {
+// LLVM-NEXT:   %1 = call double @pow(double %b, double -0.5)
+// LLVM-NEXT:   %2 = call double @log(double %1)
+// LLVM-NEXT:   %3 = fmul double 1.44, %2
+// LLVM-NEXT:   %4 = fmul double 12.4, %a
+// LLVM-NEXT:   %5 = fadd double 3.0, %4
+// LLVM-NEXT:   %6 = call double @exp(double %5)
+// LLVM-NEXT:   %7 = fadd double %a, %3
+// LLVM-NEXT:   %8 = fadd double %7, %6
+// LLVM-NEXT:   ret double %8
+// LLVM-NEXT: }
+// LLVM-EMPTY:
+// LLVM-NEXT: ; Declare external functions:
+// LLVM-NEXT: declare double @pow(double, double)
+// LLVM-NEXT: declare double @log(double)
+// LLVM-NEXT: declare double @exp(double)
+
+// I32:      define double @fun(i32 %a, i32 %b) {
+// I32-NEXT:   %1 = sitofp i32 %b to double
+// I32-NEXT:   %2 = call double @pow(double %1, double -0.5)
+// I32-NEXT:   %3 = call double @log(double %2)
+// I32-NEXT:   %4 = fmul double 1.44, %3
+// I32-NEXT:   %5 = sitofp i32 %a to double
+// I32-NEXT:   %6 = fmul double 12.4, %5
+// I32-NEXT:   %7 = fadd double 3.0, %6
+// I32-NEXT:   %8 = call double @exp(double %7)
+// I32-NEXT:   %9 = sitofp i32 %a to double
+// I32-NEXT:   %10 = fadd double %9, %4
+// I32-NEXT:   %11 = fadd double %10, %8
+// I32-NEXT:   ret double %11
+// I32-NEXT: }
+// I32-EMPTY:
+// I32-NEXT: ; Declare external functions:
+// I32-NEXT: declare double @pow(double, double)
+// I32-NEXT: declare double @log(double)
+// I32-NEXT: declare double @exp(double)

@@ -8,6 +8,8 @@ import itertools
 
 from enum import Flag, auto
 
+from sympy2xdsl.base import SimpleConverter
+
 
 class ExprKind(Flag):
     # arithmetic
@@ -107,7 +109,7 @@ Map from sympy functions to FunKind
 """
 
 
-class Converter:
+class Converter(SimpleConverter):
     _var_to_ssa_vars: dict[sympy.Expr, SSAValue]
     _expr: sympy.Expr
     _curr_exp: sympy.Expr
@@ -119,33 +121,6 @@ class Converter:
         self._expr = expr
         self._curr_exp = expr
         self._var_to_ssa_vars = var_mapping
-
-    @classmethod
-    @abstractmethod
-    def register_args(cls, parser: argparse.ArgumentParser):
-        """
-        Register arguments needed for this converter to the argument parser.
-        """
-        raise NotImplementedError("Register args not implemented for this expression")
-
-    @classmethod
-    @abstractmethod
-    def args_to_init_args(
-        cls, args: argparse.Namespace
-    ) -> tuple[tuple[Any, ...], dict[str, Any]]:
-        """
-        Convert namespace to args and kwargs for __init__.
-
-        Args are provided based on what is registered in register_args.
-        """
-        raise NotImplementedError(
-            "Args to init args not implemented for this expression"
-        )
-
-    @classmethod
-    def from_args(cls, expr: sympy.Expr, args: argparse.Namespace) -> "Converter":
-        args, kwargs = cls.args_to_init_args(args)
-        return cls(expr, *args, **kwargs)
 
     def get_curr_expr_kind(self) -> ExprKind:
         if self._curr_exp.is_Add:
@@ -190,23 +165,10 @@ class Converter:
     def ssa_val_for(self, expr: sympy.Expr) -> SSAValue | None:
         return self._var_to_ssa_vars.get(expr, None)
 
-    @abstractmethod
-    def visit(self) -> SSAValue:
-        raise NotImplementedError("Visit not implemented for this expression")
-
-    def walk(self):
-        for expr in _walk_expr_from_leaves(self._expr):
-            self._curr_exp = expr
-            val = self.visit()
-            self._var_to_ssa_vars[expr] = val
-        return val
+    def visit(self, expr: sympy.Basic) -> SSAValue:
+        self._curr_exp = expr
+        return self.visitor()
 
     @abstractmethod
-    def convert(self):
-        raise NotImplementedError("Convert not implemented for this expression")
-
-
-def _walk_expr_from_leaves(expr: sympy.Expr) -> Iterable[sympy.Expr]:
-    for arg in expr.args:
-        yield from _walk_expr_from_leaves(arg)
-    yield expr
+    def visitor(self) -> SSAValue:
+        raise NotImplementedError("Visitor not implemented for this expression")

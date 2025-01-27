@@ -3,10 +3,12 @@ import sys
 import sympy
 import sympy.abc
 
+from sympy2xdsl.mlir import ConvertMLIR
 from sympy2xdsl.llvm import ConvertLLVM
 
 CONVERTERS = {
-    "llvm": ConvertLLVM,
+    "mlir": ConvertMLIR,
+    "llvm": ConvertLLVM
 }
 
 

@@ -1,0 +1,45 @@
+// RUN: sympy2xdsl -i %s mlir log_test f64 f64 | filecheck %s
+// RUN: sympy2xdsl -i %s mlir log_test i23 i23 --int-t i23 | filecheck --check-prefix=I23 %s
+// RUN: sympy2xdsl -i %s llvm log_test f64 f64 | filecheck --check-prefix=LLVM %s
+// RUN: sympy2xdsl -i %s llvm log_test i32 i32 --int-t i32 | filecheck --check-prefix=I32 %s
+
+log(a-b)
+
+// CHECK:      "llvm.func"() <{sym_name = "log_test", function_type = !llvm.func<f64 (f64, f64)>, CConv = #llvm.cconv<ccc>, linkage = #llvm.linkage<"internal">, visibility_ = 0 : i64}> ({
+// CHECK-NEXT: ^0(%a : f64, %b : f64):
+// CHECK-NEXT:   %0 = llvm.mlir.constant(-1) : i64
+// CHECK-NEXT:   %1 = llvm.sitofp %0 : i64 to f64
+// CHECK-NEXT:   %2 = llvm.fmul %1, %b : f64
+// CHECK-NEXT:   %3 = llvm.fadd %a, %2 : f64
+// CHECK-NEXT:   %4 = "math.log"(%3) : (f64) -> f64
+// CHECK-NEXT:   "llvm.return"(%4) : (f64) -> ()
+// CHECK-NEXT: }) : () -> ()
+
+// I23:      "llvm.func"() <{sym_name = "log_test", function_type = !llvm.func<f64 (i23, i23)>, CConv = #llvm.cconv<ccc>, linkage = #llvm.linkage<"internal">, visibility_ = 0 : i64}> ({
+// I23-NEXT: ^0(%a : i23, %b : i23):
+// I23-NEXT:   %0 = llvm.mlir.constant(-1 : i23) : i23
+// I23-NEXT:   %1 = llvm.mul %0, %b : i23
+// I23-NEXT:   %2 = llvm.add %a, %1 : i23
+// I23-NEXT:   %3 = llvm.sitofp %2 : i23 to f64
+// I23-NEXT:   %4 = "math.log"(%3) : (f64) -> f64
+// I23-NEXT:   "llvm.return"(%4) : (f64) -> ()
+// I23-NEXT: }) : () -> ()
+
+// LLVM:      define double @log_test(double %a, double %b) {
+// LLVM-NEXT:   %1 = fsub double %a, %b
+// LLVM-NEXT:   %2 = call double @log(double %1)
+// LLVM-NEXT:   ret double %2
+// LLVM-NEXT: }
+// LLVM-EMPTY:
+// LLVM-NEXT: ; Declare external functions:
+// LLVM-NEXT: declare double @log(double)
+
+// I32:      define double @log_test(i32 %a, i32 %b) {
+// I32-NEXT:   %1 = sub i32 %a, %b
+// I32-NEXT:   %2 = sitofp i32 %1 to double
+// I32-NEXT:   %3 = call double @log(double %2)
+// I32-NEXT:   ret double %3
+// I32-NEXT: }
+// I32-EMPTY:
+// I32-NEXT: ; Declare external functions:
+// I32-NEXT: declare double @log(double)
