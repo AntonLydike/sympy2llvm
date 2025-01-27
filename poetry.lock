@@ -339,10 +339,10 @@ riscv = ["riscemu (==2.2.7)"]
 [package.source]
 type = "git"
 url = "https://github.com/xdslproject/xdsl"
-reference = "anton/llvm-float-stuff"
-resolved_reference = "f256fae4b0ad92c70d221da2972e0e8349eccda5"
+reference = "main"
+resolved_reference = "ef0da35b64ae7e6c5ecab4a0d14ac7e245cf79d1"
 
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "66875cabb26e3b0dc671dcb3a29bbb6049d05503b2f4547b5fcdf02f64521ff0"
+content-hash = "c616cbd503806637dc939ca0c3c81b95341d8760c2e3a3a75474af9f22d8d5a9"

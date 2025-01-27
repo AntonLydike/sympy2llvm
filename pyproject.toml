@@ -13,7 +13,7 @@ sympy2xdsl = "sympy2xdsl.main:main"
 [tool.poetry.dependencies]
 python = "^3.10"
 sympy = "^1.13.3"
-xdsl = {git = "https://github.com/xdslproject/xdsl", rev = "anton/llvm-float-stuff"}
+xdsl = {git = "https://github.com/xdslproject/xdsl", rev = "main"}
 
 
 [tool.poetry.group.dev.dependencies]

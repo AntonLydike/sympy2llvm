@@ -1,0 +1,19 @@
+// RUN: sympy2xdsl -i %s mlir add f64 f64 f64 f64 | filecheck %s
+// RUN: sympy2xdsl -i %s llvm add f64 f64 f64 f64 | filecheck --check-prefix=LLVM %s
+
+a+b+c+d
+
+// CHECK:      "llvm.func"() <{sym_name = "add", function_type = !llvm.func<f64 (f64, f64, f64, f64)>, CConv = #llvm.cconv<ccc>, linkage = #llvm.linkage<"internal">, visibility_ = 0 : i64}> ({
+// CHECK-NEXT: ^0(%a : f64, %b : f64, %c : f64, %d : f64):
+// CHECK-NEXT:   %0 = llvm.fadd %a, %b : f64
+// CHECK-NEXT:   %1 = llvm.fadd %0, %c : f64
+// CHECK-NEXT:   %2 = llvm.fadd %1, %d : f64
+// CHECK-NEXT:   "llvm.return"(%2) : (f64) -> ()
+// CHECK-NEXT: }) : () -> ()
+
+// LLVM:      define double @add(double %a, double %b, double %c, double %d) {
+// LLVM-NEXT:   %1 = fadd double %a, %b
+// LLVM-NEXT:   %2 = fadd double %1, %c
+// LLVM-NEXT:   %3 = fadd double %2, %d
+// LLVM-NEXT:   ret double %3
+// LLVM-NEXT: }
