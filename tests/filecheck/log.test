@@ -11,7 +11,7 @@ log(a-b)
 // CHECK-NEXT:   %1 = llvm.sitofp %0 : i64 to f64
 // CHECK-NEXT:   %2 = llvm.fmul %1, %b : f64
 // CHECK-NEXT:   %3 = llvm.fadd %a, %2 : f64
-// CHECK-NEXT:   %4 = "math.log"(%3) : (f64) -> f64
+// CHECK-NEXT:   %4 = math.log %3 : f64
 // CHECK-NEXT:   "llvm.return"(%4) : (f64) -> ()
 // CHECK-NEXT: }) : () -> ()
 
@@ -21,7 +21,7 @@ log(a-b)
 // I23-NEXT:   %1 = llvm.mul %0, %b : i23
 // I23-NEXT:   %2 = llvm.add %a, %1 : i23
 // I23-NEXT:   %3 = llvm.sitofp %2 : i23 to f64
-// I23-NEXT:   %4 = "math.log"(%3) : (f64) -> f64
+// I23-NEXT:   %4 = math.log %3 : f64
 // I23-NEXT:   "llvm.return"(%4) : (f64) -> ()
 // I23-NEXT: }) : () -> ()
 

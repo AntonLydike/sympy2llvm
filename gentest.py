@@ -1,6 +1,5 @@
 import subprocess
 
-
 def discover_test_runners_for(f: str):
     with open(f, 'r') as file:
         for line in file:
@@ -43,10 +42,21 @@ def assemble_filecheck_lines(f: str):
 
 def main():
     import sys
-    for f in sys.argv[1:]:
-        print(f"\n\nTEST: {f}\n")
-        for line in assemble_filecheck_lines(f):
-            print(line)
+    if '--inplace' in sys.argv:
+        sys.argv.remove('--inplace')
+
+        for f in sys.argv[1:]:
+            print(f"\n\nTEST: {f}\n")
+            new_check_lines = list(assemble_filecheck_lines(f))
+            with open(f, 'r') as file:
+                old_lines = file.readlines()
+            with open(f, 'w') as file:
+                for line in old_lines:
+                    if 'CHECK:' in line:
+                        break
+                    file.write(line)
+                file.write('\n'.join(new_check_lines))
+
 
 if __name__ == '__main__':
     main()

@@ -9,15 +9,15 @@ a + log(1/sqrt(b))*1.44 + exp(12.4*a+3)
 // CHECK-NEXT: ^0(%a : f64, %b : f64):
 // CHECK-NEXT:   %0 = llvm.mlir.constant(1.440000e+00 : f64) : f64
 // CHECK-NEXT:   %1 = llvm.mlir.constant(-5.000000e-01 : f64) : f64
-// CHECK-NEXT:   %2 = "math.powf"(%b, %1) : (f64, f64) -> f64
-// CHECK-NEXT:   %3 = "math.log"(%2) : (f64) -> f64
+// CHECK-NEXT:   %2 = math.powf %b, %1 : f64
+// CHECK-NEXT:   %3 = math.log %2 : f64
 // CHECK-NEXT:   %4 = llvm.fmul %0, %3 : f64
 // CHECK-NEXT:   %5 = llvm.mlir.constant(3) : i64
 // CHECK-NEXT:   %6 = llvm.mlir.constant(1.240000e+01 : f64) : f64
 // CHECK-NEXT:   %7 = llvm.fmul %6, %a : f64
 // CHECK-NEXT:   %8 = llvm.sitofp %5 : i64 to f64
 // CHECK-NEXT:   %9 = llvm.fadd %8, %7 : f64
-// CHECK-NEXT:   %10 = "math.exp"(%9) : (f64) -> f64
+// CHECK-NEXT:   %10 = math.exp %9 : f64
 // CHECK-NEXT:   %11 = llvm.fadd %a, %4 : f64
 // CHECK-NEXT:   %12 = llvm.fadd %11, %10 : f64
 // CHECK-NEXT:   "llvm.return"(%12) : (f64) -> ()
@@ -28,8 +28,8 @@ a + log(1/sqrt(b))*1.44 + exp(12.4*a+3)
 // I23-NEXT:   %0 = llvm.mlir.constant(1.440000e+00 : f64) : f64
 // I23-NEXT:   %1 = llvm.mlir.constant(-5.000000e-01 : f64) : f64
 // I23-NEXT:   %2 = llvm.sitofp %b : i23 to f64
-// I23-NEXT:   %3 = "math.powf"(%2, %1) : (f64, f64) -> f64
-// I23-NEXT:   %4 = "math.log"(%3) : (f64) -> f64
+// I23-NEXT:   %3 = math.powf %2, %1 : f64
+// I23-NEXT:   %4 = math.log %3 : f64
 // I23-NEXT:   %5 = llvm.fmul %0, %4 : f64
 // I23-NEXT:   %6 = llvm.mlir.constant(3 : i23) : i23
 // I23-NEXT:   %7 = llvm.mlir.constant(1.240000e+01 : f64) : f64
@@ -37,7 +37,7 @@ a + log(1/sqrt(b))*1.44 + exp(12.4*a+3)
 // I23-NEXT:   %9 = llvm.fmul %7, %8 : f64
 // I23-NEXT:   %10 = llvm.sitofp %6 : i23 to f64
 // I23-NEXT:   %11 = llvm.fadd %10, %9 : f64
-// I23-NEXT:   %12 = "math.exp"(%11) : (f64) -> f64
+// I23-NEXT:   %12 = math.exp %11 : f64
 // I23-NEXT:   %13 = llvm.sitofp %a : i23 to f64
 // I23-NEXT:   %14 = llvm.fadd %13, %5 : f64
 // I23-NEXT:   %15 = llvm.fadd %14, %12 : f64

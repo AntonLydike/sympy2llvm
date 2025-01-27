@@ -10,7 +10,7 @@ a**(b*3)
 // CHECK-NEXT:   %0 = llvm.mlir.constant(3) : i64
 // CHECK-NEXT:   %1 = llvm.sitofp %0 : i64 to f64
 // CHECK-NEXT:   %2 = llvm.fmul %1, %b : f64
-// CHECK-NEXT:   %3 = "math.powf"(%a, %2) : (f64, f64) -> f64
+// CHECK-NEXT:   %3 = math.powf %a, %2 : f64
 // CHECK-NEXT:   "llvm.return"(%3) : (f64) -> ()
 // CHECK-NEXT: }) : () -> ()
 
@@ -19,7 +19,7 @@ a**(b*3)
 // I23-NEXT:   %0 = llvm.mlir.constant(3 : i23) : i23
 // I23-NEXT:   %1 = llvm.mul %0, %b : i23
 // I23-NEXT:   %2 = llvm.sitofp %a : i23 to i23
-// I23-NEXT:   %3 = "math.powf"(%2, %1) : (i23, i23) -> i23
+// I23-NEXT:   %3 = math.powf %2, %1 : i23
 // I23-NEXT:   "llvm.return"(%3) : (i23) -> ()
 // I23-NEXT: }) : () -> ()
 
