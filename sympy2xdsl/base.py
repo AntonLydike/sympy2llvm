@@ -12,7 +12,6 @@ def _walk_expr_from_leaves(expr: sympy.Basic) -> Iterable[sympy.Expr]:
     yield expr
 
 
-
 class SimpleConverter:
     def __init__(self, expr: sympy.Expr):
         self._expr = expr

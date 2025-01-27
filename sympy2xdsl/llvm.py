@@ -9,7 +9,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import reduce
 from io import TextIOBase, StringIO
-from enum import StrEnum, auto
 from typing import ContextManager, Any, Literal, TypeAlias
 
 import argparse
@@ -57,10 +56,10 @@ class LLVMType:
         raise ValueError(f"Invalid type supplied: {expr}")
 
     _FLOAT_WIDTH_TO_LLVM_NAME = {
-        16: 'half',
-        32: 'float',
-        64: 'double',
-        128: 'fp128',
+        16: "half",
+        32: "float",
+        64: "double",
+        128: "fp128",
     }
 
     def __str__(self):
@@ -70,7 +69,10 @@ class LLVMType:
 
     def widest(self, other: LLVMType):
         match (self, other):
-            case (LLVMType(kind=k1, width=width1), LLVMType(kind=k2, width=width2)) if k1 == k2:
+            case (
+                LLVMType(kind=k1, width=width1),
+                LLVMType(kind=k2, width=width2),
+            ) if k1 == k2:
                 return LLVMType(k1, max(width1, width2))
             case (LLVMType(kind="f", width=width1), LLVMType(kind="i", width=width2)):
                 return LLVMType("f", width1)
@@ -82,22 +84,11 @@ class LLVMType:
     def is_int(self) -> bool:
         return self.kind == "i"
 
+
 LLVMType.i32 = LLVMType.int(32)
 LLVMType.i64 = LLVMType.int(64)
 LLVMType.f32 = LLVMType.float(32)
 LLVMType.f64 = LLVMType.float(64)
-
-
-class LLVMKW(StrEnum):
-    ptr = auto()
-    define = auto()
-    ret = auto()
-    unreachable = auto()
-    label = auto()
-    call = auto()
-
-    def __str__(self):
-        return self.name
 
 
 @dataclass
@@ -116,6 +107,7 @@ class SSAVal:
 
     def __str__(self):
         return format(self, "v")
+
 
 @dataclass
 class Const:
@@ -137,6 +129,7 @@ class Const:
             return f"{self.type} {self.val}"
         raise ValueError(f"Invalid format string for Const: {format_spec}")
 
+
 ValOrConst: TypeAlias = SSAVal | Const
 
 
@@ -147,6 +140,7 @@ class PrintLLVMIR:
     _funcs_called: dict[str, tuple[tuple[LLVMType, ...], LLVMType]]
     _funcs_defined: set[str]
     _last_ret_val: ValOrConst | None
+
     def __init__(
         self,
         stream: TextIOBase,
@@ -169,7 +163,9 @@ class PrintLLVMIR:
         return val
 
     @contextmanager
-    def _with_temp_buff(self, io: TextIOBase, add_indent: str = "") -> ContextManager[PrintLLVMIR]:
+    def _with_temp_buff(
+        self, io: TextIOBase, add_indent: str = ""
+    ) -> ContextManager[PrintLLVMIR]:
         tmp_io = self._io
         self._io = io
         tmp_indent = self._indent
@@ -293,7 +289,8 @@ class ConvertLLVM(SimpleConverter):
         self._int_t = int_t
         self._io = StringIO()
         self._inp_args = {
-            sym.name: SSAVal(sym.name, typ) for sym, typ in zip(expr.free_symbols, inp_types)
+            sym.name: SSAVal(sym.name, typ)
+            for sym, typ in zip(expr.free_symbols, inp_types)
         }
         self.printer = PrintLLVMIR(self._io)
 
@@ -343,12 +340,22 @@ class ConvertLLVM(SimpleConverter):
         if val.type == t:
             return val
         match (val.type, t):
-            case LLVMType(kind="f", width=width1), LLVMType(kind="f", width=width2) if width2 > width1:
-                return self.printer.print_inst("fpext", val.type, val, "to", t, result_t=t)
+            case LLVMType(kind="f", width=width1), LLVMType(
+                kind="f", width=width2
+            ) if width2 > width1:
+                return self.printer.print_inst(
+                    "fpext", val.type, val, "to", t, result_t=t
+                )
             case LLVMType(kind="i"), LLVMType(kind="f"):
-                return self.printer.print_inst("sitofp", val.type, val, "to", t, result_t=t)
-            case LLVMType(kind="i", width=width1), LLVMType(kind="i", width=width2) if width2 > width1:
-                return self.printer.print_inst("sext", val.type, val, "to", t, result_t=t)
+                return self.printer.print_inst(
+                    "sitofp", val.type, val, "to", t, result_t=t
+                )
+            case LLVMType(kind="i", width=width1), LLVMType(
+                kind="i", width=width2
+            ) if width2 > width1:
+                return self.printer.print_inst(
+                    "sext", val.type, val, "to", t, result_t=t
+                )
             case _:
                 raise ValueError(f"Conversion not implemented between {val} and {t}")
 
@@ -363,32 +370,59 @@ class ConvertLLVM(SimpleConverter):
             # detect a + -1*b
             if expr.args[1].is_Mul and expr.args[1].args[0] == -1:
                 # emit a - b
-                return self._emit_var_len_args((expr.args[0], expr.args[1].args[1]), "sub {dest_t} {base}, {arg}", "fsub {dest_t} {base}, {arg}")
-            return self._emit_var_len_args(expr, "add {dest_t} {base}, {arg}", "fadd {dest_t} {base}, {arg}")
+                return self._emit_var_len_args(
+                    (expr.args[0], expr.args[1].args[1]),
+                    "sub {dest_t} {base}, {arg}",
+                    "fsub {dest_t} {base}, {arg}",
+                )
+            return self._emit_var_len_args(
+                expr, "add {dest_t} {base}, {arg}", "fadd {dest_t} {base}, {arg}"
+            )
         elif expr.is_Mul:
             # detect a * 1/b (which is a * (b**-1)
             if expr.args[1].is_Pow and expr.args[1].args[1] == -1:
                 # print a/b as either sdiv or fdiv
-                return self._emit_var_len_args((expr.args[0], expr.args[1].args[0]), "sdiv {dest_t} {base}, {arg}", "fdiv {dest_t} {base}, {arg}")
-            return self._emit_var_len_args(expr, "mul {dest_t} {base}, {arg}", "fmul {dest_t} {base}, {arg}")
+                return self._emit_var_len_args(
+                    (expr.args[0], expr.args[1].args[0]),
+                    "sdiv {dest_t} {base}, {arg}",
+                    "fdiv {dest_t} {base}, {arg}",
+                )
+            return self._emit_var_len_args(
+                expr, "mul {dest_t} {base}, {arg}", "fmul {dest_t} {base}, {arg}"
+            )
         elif expr.is_Pow:
             arg = self.visit(expr.args[0])
             if expr.args[1] == -1:
                 # emit 1/x
-                return self.printer.print_inst(f"fdiv {self._float_t} 1, {self._v_as(arg, self._float_t)}")
+                return self.printer.print_inst(
+                    f"fdiv {self._float_t} 1, {self._v_as(arg, self._float_t)}"
+                )
             elif expr.args[1] == 2:
                 # emit x*x
                 if arg.type.is_int():
-                    return self.printer.print_inst(f"shl {self._int_t} {arg}, 1", result_t=self._float_t)
-                return self.printer.print_inst(f"fmul {self._float_t} {arg}, {arg}", result_t=self._float_t)
-            float_args = tuple(self._v_as(v, self._float_t) for v in map(self.visit, expr.args))
-            return self.printer.print_call(self._float_t, 'pow', float_args)
+                    return self.printer.print_inst(
+                        f"shl {self._int_t} {arg}, 1", result_t=self._float_t
+                    )
+                return self.printer.print_inst(
+                    f"fmul {self._float_t} {arg}, {arg}", result_t=self._float_t
+                )
+            float_args = tuple(
+                self._v_as(v, self._float_t) for v in map(self.visit, expr.args)
+            )
+            return self.printer.print_call(self._float_t, "pow", float_args)
         else:
             func_name = str(expr.func)
-            float_args = tuple(self._v_as(v, self._float_t) for v in map(self.visit, expr.args))
+            float_args = tuple(
+                self._v_as(v, self._float_t) for v in map(self.visit, expr.args)
+            )
             return self.printer.print_call(self._float_t, func_name, float_args)
 
-    def _emit_var_len_args(self, expr: sympy.Basic | tuple[sympy.Basic, ...], int_name: str, float_name: str):
+    def _emit_var_len_args(
+        self,
+        expr: sympy.Basic | tuple[sympy.Basic, ...],
+        int_name: str,
+        float_name: str,
+    ):
         """
         Take an expression, (e.g. a+b+c) and emit pairwise instructions for each argument.
 
@@ -407,14 +441,18 @@ class ConvertLLVM(SimpleConverter):
 
         base = args[0]
         for arg in args[1:]:
-            base = self.printer.print_inst(inst.format(base=base, arg=arg, dest_t=dest_arg_t), result_t=dest_arg_t)
+            base = self.printer.print_inst(
+                inst.format(base=base, arg=arg, dest_t=dest_arg_t), result_t=dest_arg_t
+            )
         return base
 
     def walk(self):
         return self.visit(self._expr)
 
     def convert(self):
-        with self.printer.fun(self.fun_name, tuple(sorted(self._inp_args.values(), key=lambda x: x.id))):
+        with self.printer.fun(
+            self.fun_name, tuple(sorted(self._inp_args.values(), key=lambda x: x.id))
+        ):
             res = self.walk()
             self.printer.print_ret(res)
         # return the final string

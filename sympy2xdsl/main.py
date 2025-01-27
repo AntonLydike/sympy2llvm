@@ -6,10 +6,7 @@ import sympy.abc
 from sympy2xdsl.mlir import ConvertMLIR
 from sympy2xdsl.llvm import ConvertLLVM
 
-CONVERTERS = {
-    "mlir": ConvertMLIR,
-    "llvm": ConvertLLVM
-}
+CONVERTERS = {"mlir": ConvertMLIR, "llvm": ConvertLLVM}
 
 
 class Sympy2XDSLMain:
