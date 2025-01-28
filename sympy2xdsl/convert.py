@@ -1,15 +1,10 @@
-import argparse
 from abc import abstractmethod
-from typing import Callable, Iterable, Any
 import sympy
-from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.ir import SSAValue
-import itertools
 
 from enum import Flag, auto
 
 from sympy2xdsl.base import SimpleConverter
-
 
 class ExprKind(Flag):
     # arithmetic
