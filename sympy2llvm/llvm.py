@@ -14,7 +14,7 @@ from typing import ContextManager, Any, Literal, TypeAlias
 import argparse
 import sympy
 
-from sympy2xdsl.base import SimpleConverter
+from sympy2llvm.base import SimpleConverter
 
 
 class LLVMType:
@@ -279,6 +279,7 @@ class ConvertLLVM(SimpleConverter):
         /,
         int_t: LLVMType = LLVMType.i64,
         float_t: LLVMType = LLVMType.f64,
+        printer: PrintLLVMIR | None = None,
     ):
         super().__init__(expr)
         if len(expr.free_symbols) != len(inp_types):
@@ -287,12 +288,17 @@ class ConvertLLVM(SimpleConverter):
         self._inp_types = inp_types
         self._float_t = float_t
         self._int_t = int_t
-        self._io = StringIO()
+
         self._inp_args = {
             sym.name: SSAVal(sym.name, typ)
             for sym, typ in zip(expr.free_symbols, inp_types)
         }
-        self.printer = PrintLLVMIR(self._io)
+
+        if printer is None:
+            self.printer = PrintLLVMIR(StringIO())
+        else:
+            self.printer = printer
+
 
     @classmethod
     def register_args(cls, parser: argparse.ArgumentParser):
@@ -457,4 +463,4 @@ class ConvertLLVM(SimpleConverter):
             self.printer.print_ret(res)
         # return the final string
         self.printer.print_func_decls()
-        return self._io.getvalue().strip()
+        return self.printer._io.getvalue().strip()

@@ -3,13 +3,13 @@ import sys
 import sympy
 import sympy.abc
 
-from sympy2xdsl.mlir import ConvertMLIR
-from sympy2xdsl.llvm import ConvertLLVM
+from sympy2llvm.mlir import ConvertMLIR
+from sympy2llvm.llvm import ConvertLLVM
 
 CONVERTERS = {"mlir": ConvertMLIR, "llvm": ConvertLLVM}
 
 
-class Sympy2XDSLMain:
+class sympy2llvmMain:
     _args: argparse.Namespace
 
     def __init__(self, args: list[str]):
@@ -46,7 +46,7 @@ class Sympy2XDSLMain:
 
     def _parse_args(self, args: list[str]):
         parser = argparse.ArgumentParser(
-            "Sympy2XDSL: Convert SymPy expressions to XDSL"
+            "sympy2llvm: Convert SymPy expressions to XDSL"
         )
 
         parser.add_argument(
@@ -68,4 +68,4 @@ class Sympy2XDSLMain:
 
 
 def main():
-    Sympy2XDSLMain(sys.argv[1:]).run()
+    sympy2llvmMain(sys.argv[1:]).run()

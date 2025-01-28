@@ -1,4 +1,4 @@
-from sympy2xdsl.main import main
+from sympy2llvm.main import main
 
 if __name__ == "__main__":
     main()

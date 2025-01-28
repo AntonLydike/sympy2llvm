@@ -1,5 +1,5 @@
-// RUN: sympy2xdsl -i %s mlir add f64 f64 f64 f64 | filecheck %s
-// RUN: sympy2xdsl -i %s llvm add f64 f64 f64 f64 | filecheck --check-prefix=LLVM %s
+// RUN: sympy2llvm -i %s mlir add f64 f64 f64 f64 | filecheck %s
+// RUN: sympy2llvm -i %s llvm add f64 f64 f64 f64 | filecheck --check-prefix=LLVM %s
 
 a+b+c+d
 

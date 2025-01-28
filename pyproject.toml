@@ -1,14 +1,13 @@
 [tool.poetry]
-name = "sympy2xdsl"
+name = "sympy2llvm"
 version = "0.1.0"
-description = "Convert sympy expressions to SSA form via xDSL"
+description = "Convert sympy expressions to SSA form"
 authors = ["Anton Lydike <me@antonlydike.de>"]
 license = "AGPL-3.0-or-later"
 readme = "README.md"
 
-
 [tool.poetry.scripts]
-sympy2xdsl = "sympy2xdsl.main:main"
+sympy2llvm = "sympy2llvm.main:main"
 
 [tool.poetry.dependencies]
 python = "^3.10"

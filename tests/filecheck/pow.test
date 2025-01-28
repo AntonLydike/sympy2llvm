@@ -1,7 +1,7 @@
-// RUN: sympy2xdsl -i %s mlir test_pow f64 f64 | filecheck %s
-// RUN: sympy2xdsl -i %s mlir test_pow i23 i23 --int-t i23 | filecheck --check-prefix=I23 %s
-// RUN: sympy2xdsl -i %s llvm test_pow f64 f64 | filecheck --check-prefix=LLVM %s
-// RUN: sympy2xdsl -i %s llvm test_pow i32 i32 --int-t i32 | filecheck --check-prefix=I32 %s
+// RUN: sympy2llvm -i %s mlir test_pow f64 f64 | filecheck %s
+// RUN: sympy2llvm -i %s mlir test_pow i23 i23 --int-t i23 | filecheck --check-prefix=I23 %s
+// RUN: sympy2llvm -i %s llvm test_pow f64 f64 | filecheck --check-prefix=LLVM %s
+// RUN: sympy2llvm -i %s llvm test_pow i32 i32 --int-t i32 | filecheck --check-prefix=I32 %s
 
 a**(b*3)
 

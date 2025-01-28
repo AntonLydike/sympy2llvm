@@ -15,7 +15,7 @@ from xdsl.dialects.builtin import (
     AnyFloat,
 )
 
-from sympy2xdsl.base import SimpleConverter
+from sympy2llvm.base import SimpleConverter
 
 
 FUN_TO_MATH: dict[sympy.Function, Operation | None] = {
@@ -248,7 +248,7 @@ class ConvertMLIR(SimpleConverter):
     def walk(self):
         return self.visit(self._expr)
 
-    def convert(self) -> str:
+    def convert(self) -> Operation:
         block = Block(arg_types=tuple(self._inp_types))
         for arg, sym in zip(
             block.args, sorted(self._expr.free_symbols, key=lambda x: x.name)
