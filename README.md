@@ -24,4 +24,11 @@ x,y = sympy.symbols("x y")
 
 conv = ConvertLLVM(x/y, "div", (LLVMType.i32, LLVMType.i32), int_t=LLVMType.i32)
 llvmir = conv.convert()
+
+print(llvmir)
+# prints:
+# define i32 @div(i32 %a, i32 %b) {
+#   %1 = sdiv i32 %a, %b
+#   ret i32 %1
+# }
 ```
