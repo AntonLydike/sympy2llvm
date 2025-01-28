@@ -7,19 +7,14 @@ a-b
 
 // CHECK:      "llvm.func"() <{sym_name = "sub", function_type = !llvm.func<f64 (f64, f64)>, CConv = #llvm.cconv<ccc>, linkage = #llvm.linkage<"internal">, visibility_ = 0 : i64}> ({
 // CHECK-NEXT: ^0(%a : f64, %b : f64):
-// CHECK-NEXT:   %0 = llvm.mlir.constant(-1) : i64
-// CHECK-NEXT:   %1 = llvm.sitofp %0 : i64 to f64
-// CHECK-NEXT:   %2 = llvm.fmul %1, %b : f64
-// CHECK-NEXT:   %3 = llvm.fadd %a, %2 : f64
-// CHECK-NEXT:   "llvm.return"(%3) : (f64) -> ()
+// CHECK-NEXT:   %0 = llvm.fsub %a, %b : f64
+// CHECK-NEXT:   "llvm.return"(%0) : (f64) -> ()
 // CHECK-NEXT: }) : () -> ()
 
 // I23:      "llvm.func"() <{sym_name = "sub", function_type = !llvm.func<i23 (i23, i23)>, CConv = #llvm.cconv<ccc>, linkage = #llvm.linkage<"internal">, visibility_ = 0 : i64}> ({
 // I23-NEXT: ^0(%a : i23, %b : i23):
-// I23-NEXT:   %0 = llvm.mlir.constant(-1 : i23) : i23
-// I23-NEXT:   %1 = llvm.mul %0, %b : i23
-// I23-NEXT:   %2 = llvm.add %a, %1 : i23
-// I23-NEXT:   "llvm.return"(%2) : (i23) -> ()
+// I23-NEXT:   %0 = llvm.sub %a, %b : i23
+// I23-NEXT:   "llvm.return"(%0) : (i23) -> ()
 // I23-NEXT: }) : () -> ()
 
 // LLVM:      define double @sub(double %a, double %b) {

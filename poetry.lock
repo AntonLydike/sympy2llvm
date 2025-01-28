@@ -317,7 +317,7 @@ files = [
 
 [[package]]
 name = "xdsl"
-version = "0.27.0+2.gef0da35b6"
+version = "0.27.0+4.gfa315a76f"
 description = "xDSL"
 optional = false
 python-versions = ">=3.10"
@@ -330,7 +330,7 @@ ordered-set = "4.1.0"
 typing-extensions = ">=4.7,<4.13"
 
 [package.extras]
-dev = ["asv (<0.7)", "coverage (<8.0.0)", "filecheck (==1.0.1)", "ipykernel", "lit (<19.0.0)", "marimo (==0.10.15)", "nbconvert (>=7.7.2,<8.0.0)", "nbval (<0.12)", "pip (<25.0)", "pre-commit (==4.1.0)", "pyright (==1.1.392.post0)", "pytest (<8.4)", "pytest-asyncio (==0.25.2)", "pytest-cov", "ruff (==0.9.3)", "textual-dev (==1.7.0)", "toml (<0.11)"]
+dev = ["asv (<0.7)", "coverage (<8.0.0)", "filecheck (==1.0.1)", "ipykernel", "lit (<19.0.0)", "marimo (==0.10.15)", "nbconvert (>=7.7.2,<8.0.0)", "nbval (<0.12)", "pre-commit (==4.1.0)", "pyright (==1.1.392.post0)", "pytest (<8.4)", "pytest-asyncio (==0.25.2)", "pytest-cov", "ruff (==0.9.3)", "textual-dev (==1.7.0)", "toml (<0.11)"]
 docs = ["mkdocs (>=1.6.1)", "mkdocs-gen-files (>=0.5.0)", "mkdocs-material (>=9.5.49)", "mkdocstrings[python] (>=0.27.0)"]
 gui = ["pyclip (==0.7)", "textual (==1.0.0)"]
 jax = ["jax (==0.5.0)", "numpy (==2.2.2)"]
@@ -340,7 +340,7 @@ riscv = ["riscemu (==2.2.7)"]
 type = "git"
 url = "https://github.com/xdslproject/xdsl"
 reference = "main"
-resolved_reference = "ef0da35b64ae7e6c5ecab4a0d14ac7e245cf79d1"
+resolved_reference = "fa315a76fc8d410d1172756bfda6367fc2295acb"
 
 [metadata]
 lock-version = "2.0"

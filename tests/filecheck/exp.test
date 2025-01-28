@@ -12,9 +12,8 @@ a**b
 
 // I23:      "llvm.func"() <{sym_name = "exp", function_type = !llvm.func<i23 (i23, i23)>, CConv = #llvm.cconv<ccc>, linkage = #llvm.linkage<"internal">, visibility_ = 0 : i64}> ({
 // I23-NEXT: ^0(%a : i23, %b : i23):
-// I23-NEXT:   %0 = llvm.sitofp %a : i23 to i23
-// I23-NEXT:   %1 = math.powf %0, %b : i23
-// I23-NEXT:   "llvm.return"(%1) : (i23) -> ()
+// I23-NEXT:   %0 = math.ipowi %a, %b : i23
+// I23-NEXT:   "llvm.return"(%0) : (i23) -> ()
 // I23-NEXT: }) : () -> ()
 
 // LLVM:      define double @exp(double %a, double %b) {

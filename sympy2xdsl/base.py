@@ -1,30 +1,13 @@
 import argparse
 from abc import abstractmethod
-from collections.abc import Iterable
 from typing import Any
 
 import sympy
 
 
-def _walk_expr_from_leaves(expr: sympy.Basic) -> Iterable[sympy.Expr]:
-    for arg in expr.args:
-        yield from _walk_expr_from_leaves(arg)
-    yield expr
-
-
 class SimpleConverter:
     def __init__(self, expr: sympy.Expr):
         self._expr = expr
-
-    @abstractmethod
-    def visit(self, expr: sympy.Basic) -> Any:
-        raise NotImplementedError("Visit not implemented for this expression")
-
-    def walk(self):
-        ret_val = None
-        for expr in _walk_expr_from_leaves(self._expr):
-            ret_val = self.visit(expr)
-        return ret_val
 
     @classmethod
     @abstractmethod
@@ -54,5 +37,5 @@ class SimpleConverter:
         return cls(expr, *args, **kwargs)
 
     @abstractmethod
-    def convert(self):
+    def convert(self) -> str:
         raise NotImplementedError("Convert not implemented for this expression")

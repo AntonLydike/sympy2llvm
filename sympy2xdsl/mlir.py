@@ -1,3 +1,4 @@
+from functools import reduce
 from typing import Any
 import argparse
 import sympy
@@ -7,46 +8,64 @@ from xdsl.ir import SSAValue, Attribute, Block, Region, Operation
 from xdsl.parser import Parser, MLContext
 from xdsl.dialects.builtin import (
     IntegerAttr,
-    i1,
     i64,
     f64,
     FloatAttr,
     IntegerType,
     AnyFloat,
 )
-from sympy2xdsl.convert import Converter, ExprKind, LitKind, FunKind
+
+from sympy2xdsl.base import SimpleConverter
 
 
-FUN_TO_MATH: dict[FunKind, Operation | None] = {
-    FunKind.LOG: math.LogOp,
-    FunKind.EXP: math.ExpOp,
+FUN_TO_MATH: dict[sympy.Function, Operation | None] = {
+    sympy.log: math.LogOp,
+    sympy.exp: math.ExpOp,
     # trig
-    FunKind.SIN: math.SinOp,
-    FunKind.COS: math.CosOp,
-    FunKind.TAN: math.TanOp,
-    FunKind.ASIN: None,
-    FunKind.ACOS: None,
-    FunKind.ATAN: math.AtanOp,
-    FunKind.ATAN2: math.Atan2Op,
-    FunKind.SINH: None,
-    FunKind.COSH: None,
-    FunKind.TANH: math.TanhOp,
-    FunKind.ASINH: None,
-    FunKind.ACOSH: None,
-    FunKind.ATANH: None,
+    sympy.sin: math.SinOp,
+    sympy.cos: math.CosOp,
+    sympy.tan: math.TanOp,
+    sympy.asin: None,
+    sympy.acos: None,
+    sympy.atan: math.AtanOp,
+    sympy.atan2: math.Atan2Op,
+    sympy.sinh: None,
+    sympy.cosh: None,
+    sympy.tanh: math.TanhOp,
+    sympy.asinh: None,
+    sympy.acosh: None,
+    sympy.atanh: None,
     # bitwise
-    FunKind.AND: llvm.AndOp,
-    FunKind.OR: llvm.OrOp,
-    FunKind.XOR: llvm.XOrOp,
+    sympy.And: llvm.AndOp,
+    sympy.Or: llvm.OrOp,
+    sympy.Xor: llvm.XOrOp,
     # misc
-    FunKind.MIN: None,
-    FunKind.MAX: None,
-    FunKind.MOD: None,
-    FunKind.ABS: None,
+    sympy.Min: None,
+    sympy.Max: None,
+    sympy.Mod: None,
+    sympy.Abs: None,
     # rounding:
-    FunKind.FLOOR: math.FloorOp,
-    FunKind.CEIL: math.CeilOp,
+    sympy.floor: math.FloorOp,
+    sympy.ceiling: math.CeilOp,
 }
+
+
+def _wider_type(a: Attribute, b: Attribute) -> Attribute:
+    """
+    Takes two xdsl int or float types and returns:
+    - the wider if both are integer or float
+    - the float type if one is float and one is int
+    - nonsense otherwise
+    """
+    # return wider of two integer types
+    if isinstance(a, IntegerType) and isinstance(b, IntegerType):
+        return a if a.bitwidth > b.bitwidth else b
+    # return wider of two float types
+    elif isinstance(a, AnyFloat) and isinstance(b, AnyFloat):
+        return a if a.bitwidth > b.bitwidth else b
+    # return the float type if one is float and one is int
+    else:
+        return a if isinstance(a, AnyFloat) else b
 
 
 def parse_string_to_xdsl_type(type_str: str) -> Attribute:
@@ -57,12 +76,12 @@ def parse_string_to_xdsl_type(type_str: str) -> Attribute:
     return p.parse_type()
 
 
-class ConvertMLIR(Converter):
+class ConvertMLIR(SimpleConverter):
     fun_name: str
     _inp_types: tuple[Attribute, ...]
     _float_t: Attribute
     _int_t: Attribute
-    _var_to_ssa_vars: dict[sympy.Symbol, SSAValue]
+    _var_to_ssa_vars: dict[sympy.Basic, SSAValue]
 
     def __init__(
         self,
@@ -73,7 +92,7 @@ class ConvertMLIR(Converter):
         int_t: Attribute = i64,
         float_t: Attribute = f64,
     ):
-        super().__init__(expr, dict())
+        super().__init__(expr)
         if len(expr.free_symbols) != len(inp_types):
             raise ValueError("Not enough input types provided for the expression")
         self.fun_name = fun_name
@@ -116,198 +135,120 @@ class ConvertMLIR(Converter):
             "float_t": args.float_t,
         }
 
-    def visitor(self) -> SSAValue:
-        if self._curr_exp in self._var_to_ssa_vars:
-            return self._var_to_ssa_vars[self._curr_exp]
-        expr = self.get_curr_expr_kind()
-
-        if expr == ExprKind.VAR:
-            return self.ssa_val_for(self._curr_exp)
-        if expr in ExprKind.ADD | ExprKind.MUL | ExprKind.DIV | ExprKind.POW:
-            return self.visit_math(expr)
-        elif expr == ExprKind.FUN:
-            return self.visit_fun(expr)
-        elif expr == ExprKind.COMPARISON:
-            return self.visit_comp(expr)
-        elif expr == ExprKind.LITERAL:
-            return self.visit_lit(expr)
-
-    def visit_lit(self, expr) -> SSAValue:
-        kind = self.get_curr_lit_kind()
-        if LitKind.INT in kind:
+    def expr_to_xdsl(self, expr: sympy.Basic) -> SSAValue | Operation:
+        if expr.is_Symbol:
+            return self._var_to_ssa_vars[expr]
+        elif expr.is_Integer:
             return llvm.ConstantOp(
-                IntegerAttr(int(self._curr_exp), self._int_t), self._int_t
-            ).result
-        if LitKind.BOOL in kind:
-            return llvm.ConstantOp(IntegerAttr(int(expr), i1), i1).result
-        if LitKind.FLOAT in kind or LitKind.RATIONAL in kind:
+                IntegerAttr(int(expr.evalf()), self._int_t), self._int_t
+            )
+        elif expr.is_Float | expr.is_Rational:
             return llvm.ConstantOp(
-                FloatAttr(float(self._curr_exp), self._float_t), self._float_t
-            ).result
-
-    def visit_fun(self, expr: sympy.Expr) -> SSAValue:
-        kind = self.get_curr_fun_kind()
-        if FUN_TO_MATH.get(kind, None) is not None:
-            if len(self._curr_exp.args) == 1:
-                arg = self.get_val_as_type(self._curr_exp.args[0], self._float_t)
-                return FUN_TO_MATH.get(kind)(arg).results[0]
+                FloatAttr(float(expr.evalf()), self._float_t), self._float_t
+            )
+        elif expr.is_Add:
+            # detect a + -1*b
+            if expr.args[1].is_Mul and expr.args[1].args[0] == -1:
+                return self._emit_var_int_or_float_op(
+                    llvm.SubOp, llvm.FSubOp, (expr.args[0], expr.args[1].args[1])
+                )
+            return self._emit_var_int_or_float_op(llvm.AddOp, llvm.FAddOp, expr.args)
+        elif expr.is_Pow:
+            base = self.visit(expr.args[0])
+            exp = expr.args[1]
+            if expr.args[1] == -1:
+                # emit 1/x
+                return llvm.FDivOp(
+                    self._v_as(self.visit(exp), self._float_t),
+                    self._v_as(base, self._float_t),
+                )
+            elif expr.args[1] == 2:
+                # emit x*x
+                return self._emit_var_int_or_float_op(
+                    llvm.MulOp, llvm.FMulOp, (expr.args[0], expr.args[0])
+                )
             else:
-                # for AND/OR/XOR
-                FUN_TO_MATH.get(kind)(
-                    *(
-                        self.get_val_as_type(arg, self._int_t)
-                        for arg in self._curr_exp.args
-                    )
-                ).results[0]
-        raise ValueError(f"Cannot translate function: {kind}")
-
-    def coalesce_args(
-        self, args: tuple[SSAValue, ...]
-    ) -> tuple[tuple[SSAValue, ...], Attribute]:
-        """
-        Coalesce ssa values to the same type.
-
-        type widening is applied, i.e. they are all widened to the wides int type seen
-
-        if any of the args is float, they are all cast to float instead
-        """
-        dest_t: IntegerType | AnyFloat = args[0].type
-        is_int = isinstance(dest_t, IntegerType)
-        for arg in args[1:]:
-            # both are int
-            if is_int and isinstance(arg.type, IntegerType):
-                if arg.type.bitwidth > dest_t.bitwidth:
-                    dest_t = arg.type
-            # switching to float
-            elif is_int and isinstance(arg.type, AnyFloat):
-                dest_t = arg.type
-                is_int = False
-            # both are float
-            elif isinstance(arg.type, AnyFloat):
-                # switch to wider type
-                if arg.type.bitwidth > dest_t.bitwidth:
-                    dest_t = arg.type
-
-        # cast each arg to new type
-        new_args = []
-        for arg in args:
-            # is_int implies all args are int
-            if is_int:
-                if arg.type.bitwidth == dest_t.bitwidth:
-                    new_args.append(arg)
-                    continue
-                new_args.append(llvm.SExtOp(arg, dest_t).res)
+                exp_val = self.visit(exp)
+                if isinstance(exp_val.type, IntegerType):
+                    if isinstance(base.type, IntegerType):
+                        return math.IPowIOp(base, exp_val)
+                    return math.FPowIOp(base, exp_val)
+                return math.PowFOp(
+                    self._v_as(base, self._float_t),
+                    self._v_as(exp_val, self._float_t),
+                )
+        elif expr.is_Mul:
+            # detect a * 1/b (which is a * (b**-1)
+            if expr.args[1].is_Pow and expr.args[1].args[1] == -1:
+                # print a/b as either sdiv or fdiv
+                return self._emit_var_int_or_float_op(
+                    llvm.SDivOp, llvm.FDivOp, (expr.args[0], expr.args[1].args[0])
+                )
+            return self._emit_var_int_or_float_op(llvm.MulOp, llvm.FMulOp, expr.args)
+        elif expr.func in FUN_TO_MATH:
+            if FUN_TO_MATH.get(expr.func) is None:
+                raise NotImplementedError(f"Cannot translate {expr} to math dialect")
+            op = FUN_TO_MATH[expr.func]
+            if issubclass(op, math.FloatingPointLikeBinaryMathOperation):
+                assert len(expr.args) == 2
+                return op(
+                    self._v_as(self.visit(expr.args[0]), self._float_t),
+                    self._v_as(self.visit(expr.args[1]), self._float_t),
+                )
+            elif issubclass(op, math.FloatingPointLikeUnaryMathOperation):
+                assert len(expr.args) == 1
+                return op(self._v_as(self.visit(expr.args[0]), self._float_t))
             else:
-                if isinstance(arg.type, IntegerType):
-                    # cast int to float
-                    new_args.append(llvm.SIToFPOp(arg, dest_t).result)
-                else:
-                    # cast float to float
-                    if arg.type.bitwidth == dest_t.bitwidth:
-                        new_args.append(arg)
-                        continue
-                    else:
-                        raise NotImplementedError("No llvm.fpext op in xDSL")
-        return tuple(new_args), dest_t
+                raise ValueError(f"Unknown math operation {op}")
 
-    def get_curr_exprs_ssa_args(self) -> tuple[SSAValue, ...]:
-        if self.get_curr_expr_kind() == ExprKind.DIV and self._curr_exp.is_Pow:
-            # reverse args for division, as div is really b**-1
-            return tuple(map(self.ssa_val_for, self._curr_exp.args[::-1]))
-        return tuple(map(self.ssa_val_for, self._curr_exp.args))
+    def _v_as(self, val: SSAValue, dest_t: Attribute) -> SSAValue:
+        if val.type == dest_t:
+            return val
+        if isinstance(val.type, IntegerType) and isinstance(dest_t, IntegerType):
+            return llvm.SExtOp(val, dest_t).res
+        elif isinstance(val.type, IntegerType) and isinstance(dest_t, AnyFloat):
+            return llvm.SIToFPOp(val, dest_t).result
+        elif isinstance(val.type, AnyFloat) and isinstance(dest_t, AnyFloat):
+            return llvm.FPExtOp(val, dest_t).result
+        elif isinstance(val.type, FloatAttr) and isinstance(dest_t, IntegerType):
+            # not implemented in llvm dialect yet:
+            return llvm.FPToSIOp(val, dest_t).result
 
-    def get_curr_expr_args_coalesced(self) -> tuple[SSAValue, ...]:
-        return self.coalesce_args(self.get_curr_exprs_ssa_args())
+    def _widest_type_among(self, args: tuple[SSAValue, ...]):
+        return reduce(lambda a, x: _wider_type(a, x.type), args, args[0].type)
 
-    def get_val_as_type(
-        self, exp: sympy.Expr | SSAValue, dest_t: Attribute
-    ) -> SSAValue:
-        if isinstance(exp, sympy.Expr):
-            ssa_val: SSAValue = self.ssa_val_for(exp)
-        else:
-            ssa_val: SSAValue = exp
-        source_t = ssa_val.type
-        if isinstance(source_t, IntegerType) and isinstance(dest_t, IntegerType):
-            if source_t.bitwidth == dest_t.bitwidth:
-                return ssa_val
-            return llvm.SExtOp(ssa_val, dest_t).res
-        elif isinstance(source_t, AnyFloat) and isinstance(dest_t, AnyFloat):
-            if source_t.bitwidth == dest_t.bitwidth:
-                return ssa_val
-            return llvm.FPExtOp(ssa_val, dest_t).result
-        elif isinstance(source_t, IntegerType) and isinstance(dest_t, AnyFloat):
-            return llvm.SIToFPOp(ssa_val, dest_t).result
-        elif isinstance(source_t, AnyFloat) and isinstance(dest_t, IntegerType):
-            return llvm.FPtoSIOp(
-                ssa_val, dest_t
-            ).result  # TODO: this is not implemented yet
-        raise ValueError("This should be unreachable")
+    def _emit_var_int_or_float_op(
+        self,
+        i_op: type[Operation],
+        f_op: type[Operation],
+        args: tuple[sympy.Basic, ...],
+        dest_t: Attribute | None = None,
+    ):
+        ssa_args = tuple(map(self.visit, args))
+        if dest_t is None:
+            dest_t = self._widest_type_among(ssa_args)
 
-    def _instantiate_multi_arg_op(
-        self, op_t: Operation, args: tuple[SSAValue, ...]
-    ) -> SSAValue:
-        start = args[0]
-        for arg in args[1:]:
-            start = op_t(start, arg).results[0]
-        return start
+        # choose int/float operation depending on type
+        op_t = f_op
+        if isinstance(dest_t, IntegerType):
+            op_t = i_op
 
-    def visit_math(self, expr) -> SSAValue:
-        match expr:
-            case ExprKind.ADD:
-                ssa_args, dst_type = self.get_curr_expr_args_coalesced()
-                base_op = llvm.FAddOp
-                if isinstance(dst_type, IntegerType):
-                    base_op = llvm.AddOp
-                return self._instantiate_multi_arg_op(base_op, ssa_args)
-            case ExprKind.MUL:
-                # simplify a*(b**-1) to just a/b
-                if (
-                    self._curr_exp.args[1].is_Pow
-                    and self._curr_exp.args[1].args[1] == -1
-                ):
-                    return self._insert_div(
-                        self.ssa_val_for(self._curr_exp.args[0]),
-                        self.ssa_val_for(self._curr_exp.args[1].args[0]),
-                    )
-                ssa_args, dst_type = self.get_curr_expr_args_coalesced()
-                base_op = llvm.FMulOp
-                if isinstance(dst_type, IntegerType):
-                    base_op = llvm.MulOp
-                return self._instantiate_multi_arg_op(base_op, ssa_args)
-            case ExprKind.DIV:
-                return self._insert_div(*self.get_curr_exprs_ssa_args())
-            case ExprKind.POW:
-                base, exp = self.get_curr_exprs_ssa_args()
-                if not isinstance(base.type, AnyFloat):
-                    if isinstance(exp.type, IntegerAttr):
-                        return math.IPowIOp(*self.coalesce_args((base, exp))).result
-                    base = llvm.SIToFPOp(base, exp.type).result
-                if isinstance(exp.type, IntegerAttr):
-                    return math.FPowIOp(base, exp).result
-                return math.PowFOp(base, exp).result
-            case wrong:
-                raise ValueError(f"Unknown math kind: {wrong}")
-
-    def _insert_div(self, a: SSAValue, b: SSAValue) -> SSAValue:
-        ssa_args, dst_type = self.coalesce_args((a, b))
-        base_op = llvm.FDivOp
-        if isinstance(dst_type, IntegerType):
-            base_op = llvm.SDivOp
-        return base_op(*ssa_args).res
+        base = self._v_as(ssa_args[0], dest_t)
+        for arg in ssa_args[1:]:
+            base = op_t(base, self._v_as(arg, dest_t)).results[0]
+        return base
 
     def visit(self, expr: sympy.Basic) -> SSAValue:
-        v = super().visit(expr)
-        assert v is not None, "No SSA value returned"
-        self._var_to_ssa_vars[expr] = v
+        v = SSAValue.get(self.expr_to_xdsl(expr))
+
+        if expr not in self._var_to_ssa_vars:
+            self._var_to_ssa_vars[expr] = v
         return v
 
     def walk(self):
-        res_val = super().walk()
-        # return the final result of the expression
-        llvm.ReturnOp.build(operands=[res_val])
-        return res_val
+        return self.visit(self._expr)
 
-    def convert(self):
+    def convert(self) -> str:
         block = Block(arg_types=tuple(self._inp_types))
         for arg, sym in zip(
             block.args, sorted(self._expr.free_symbols, key=lambda x: x.name)
@@ -317,9 +258,13 @@ class ConvertMLIR(Converter):
 
         with ImplicitBuilder(block):
             res = self.walk()
+            # return the final result of the expression
+            llvm.ReturnOp.build(operands=[res])
 
-        return llvm.FuncOp(
+        op = llvm.FuncOp(
             self.fun_name,
             llvm.LLVMFunctionType(self._inp_types, res.type),
             body=Region(block),
         )
+        op.verify()
+        return op

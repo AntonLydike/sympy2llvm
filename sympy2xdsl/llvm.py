@@ -449,7 +449,7 @@ class ConvertLLVM(SimpleConverter):
     def walk(self):
         return self.visit(self._expr)
 
-    def convert(self):
+    def convert(self) -> str:
         with self.printer.fun(
             self.fun_name, tuple(sorted(self._inp_args.values(), key=lambda x: x.id))
         ):
